@@ -4,7 +4,7 @@ set -ex
 
 CLANG_TIDY_CHECKS='-*'
 if [[ $TOOL == clang-tidy-analyzer ]]; then
-  CLANG_TIDY_CHECKS+=',clang-analyzer-*,-clang-analyzer-alpha*,bugprone*'
+  CLANG_TIDY_CHECKS+=',clang-analyzer-*,-clang-analyzer-alpha*,-clang-analyzer-cplusplus.NewDelete*,-clang-analyzer-cplusplus.InnerPointer,bugprone*'
 elif [[ $TOOL == clang-tidy-modernize ]]; then
   CLANG_TIDY_CHECKS+=',modernize*'
 fi
