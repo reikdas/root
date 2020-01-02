@@ -4846,7 +4846,8 @@ int RootClingMain(int argc,
       return rootclingRetCode;
    }
 
-   if (gOptSplit && splitDictStreamPtr) delete splitDictStreamPtr;
+   if (gOptSplit && splitDictStreamPtr && splitDictStreamPtr != &std::cout)
+      delete splitDictStreamPtr;
 
    // Now we have done all our looping and thus all the possible
    // annotation, let's write the pcms.
