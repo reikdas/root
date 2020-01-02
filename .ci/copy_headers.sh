@@ -21,6 +21,6 @@ make -j4 move_headers intrinsics_gen ClangCommentCommandList ClangCommentCommand
          ClangDriverOptions ClangAttrParserStringSwitches ClangAttrParsedAttrList    \
          ClangAttrTemplateInstantiate ClangAttrSpellingListIndex                     \
          ClangAttrParsedAttrImpl ClangAttrParsedAttrKinds googletest Dictgen         \
-         ClangAttrSubjectMatchRuleList
+         ClangAttrSubjectMatchRuleList BaseTROOT
 ln -s $PWD/compile_commands.json $PWD/../root/
 
