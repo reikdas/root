@@ -143,207 +143,6 @@ namespace genreflex {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-static void MaybeSuppressWin32CrashDialogs() {
-#if defined(_WIN32) && defined(_MSC_VER)
-   // Suppress error dialogs to avoid hangs on build nodes.
-   // One can use an environment variable (Cling_GuiOnAssert) to enable
-   // the error dialogs.
-   const char *EnablePopups = getenv("Cling_GuiOnAssert");
-   if (EnablePopups == nullptr || EnablePopups[0] == '0') {
-      ::_set_error_mode(_OUT_TO_STDERR);
-      _CrtSetReportMode(_CRT_WARN, _CRTDBG_MODE_FILE | _CRTDBG_MODE_DEBUG);
-      _CrtSetReportFile(_CRT_WARN, _CRTDBG_FILE_STDERR);
-      _CrtSetReportMode(_CRT_ERROR, _CRTDBG_MODE_FILE | _CRTDBG_MODE_DEBUG);
-      _CrtSetReportFile(_CRT_ERROR, _CRTDBG_FILE_STDERR);
-      _CrtSetReportMode(_CRT_ASSERT, _CRTDBG_MODE_FILE | _CRTDBG_MODE_DEBUG);
-      _CrtSetReportFile(_CRT_ASSERT, _CRTDBG_FILE_STDERR);
-   }
-#endif
-}
-
-static llvm::cl::OptionCategory gRootclingOptions("rootcling common options");
-static llvm::cl::opt<bool> gOptForce("f", llvm::cl::desc("Overwrite <file>s."),
-                                    llvm::cl::cat(gRootclingOptions));
-static llvm::cl::opt<bool> gOptRootBuild("rootbuild", llvm::cl::desc("If we are building ROOT."),
-                                        llvm::cl::Hidden,
-                                        llvm::cl::cat(gRootclingOptions));
-enum VerboseLevel {
-   v = ROOT::TMetaUtils::kError,
-   v0 = ROOT::TMetaUtils::kFatal,
-   v1 = v,
-   v2 = ROOT::TMetaUtils::kWarning,
-   v3 = ROOT::TMetaUtils::kNote,
-   v4 = ROOT::TMetaUtils::kInfo
-};
-static llvm::cl::opt<VerboseLevel>
-gOptVerboseLevel(llvm::cl::desc("Choose verbosity level:"),
-                llvm::cl::values(clEnumVal(v, "Show errors."),
-                                 clEnumVal(v0, "Show only fatal errors."),
-                                 clEnumVal(v1, "Show errors (the same as -v)."),
-                                 clEnumVal(v2, "Show warnings (default)."),
-                                 clEnumVal(v3, "Show notes."),
-                                 clEnumVal(v4, "Show information.")),
-                llvm::cl::init(v2),
-                llvm::cl::cat(gRootclingOptions));
-
-static llvm::cl::opt<bool>
-gOptCint("cint", llvm::cl::desc("Deprecated, legacy flag which is ignored."),
-        llvm::cl::Hidden,
-        llvm::cl::cat(gRootclingOptions));
-static llvm::cl::opt<bool>
-gOptReflex("reflex", llvm::cl::desc("Deprecated, legacy flag which is ignored."),
-          llvm::cl::Hidden,
-          llvm::cl::cat(gRootclingOptions));
-static llvm::cl::opt<bool>
-gOptGccXml("gccxml", llvm::cl::desc("Deprecated, legacy flag which is ignored."),
-          llvm::cl::Hidden,
-          llvm::cl::cat(gRootclingOptions));
-static llvm::cl::opt<std::string>
-gOptLibListPrefix("lib-list-prefix",
-                 llvm::cl::desc("An ACLiC feature which exports the list of dependent libraries."),
-                 llvm::cl::Hidden,
-                 llvm::cl::cat(gRootclingOptions));
-static llvm::cl::opt<bool>
-gOptGeneratePCH("generate-pch",
-               llvm::cl::desc("Generates a pch file from a predefined set of headers. See makepch.py."),
-               llvm::cl::Hidden,
-               llvm::cl::cat(gRootclingOptions));
- // FIXME: We should remove the IgnoreExistingDict option as it is not used.
-static llvm::cl::opt<bool>
-gOptIgnoreExistingDict("r",
-               llvm::cl::desc("Deprecated, legacy flag which is ignored."),
-               llvm::cl::Hidden,
-               llvm::cl::cat(gRootclingOptions));
-static llvm::cl::opt<std::string>
-gOptDictionaryFileName(llvm::cl::Positional, llvm::cl::Required,
-                      llvm::cl::desc("<output dictionary file>"),
-                      llvm::cl::cat(gRootclingOptions));
-static llvm::cl::opt<bool>
-gOptC("c", llvm::cl::desc("Deprecated, legacy flag which is ignored."),
-     llvm::cl::cat(gRootclingOptions));
-static llvm::cl::opt<bool>
-gOptP("p", llvm::cl::desc("Deprecated, legacy flag which is ignored."),
-     llvm::cl::cat(gRootclingOptions));
-static llvm::cl::list<std::string>
-gOptRootmapLibNames("rml", llvm::cl::ZeroOrMore,
-                   llvm::cl::desc("Generate rootmap file."),
-                   llvm::cl::cat(gRootclingOptions));
-static llvm::cl::opt<std::string>
-gOptRootMapFileName("rmf",
-                   llvm::cl::desc("Generate a rootmap file with the specified name."),
-                   llvm::cl::cat(gRootclingOptions));
-static llvm::cl::opt<bool>
-gOptCxxModule("cxxmodule",
-             llvm::cl::desc("Generate a C++ module."),
-             llvm::cl::cat(gRootclingOptions));
-static llvm::cl::list<std::string>
-gOptModuleMapFiles("moduleMapFile",
-                   llvm::cl::desc("Specify a C++ modulemap file."),
-                   llvm::cl::cat(gRootclingOptions));
-// FIXME: Figure out how to combine the code of -umbrellaHeader and inlineInputHeader
-static llvm::cl::opt<bool>
-gOptUmbrellaInput("umbrellaHeader",
-                  llvm::cl::desc("A single header including all headers instead of specifying them on the command line."),
-                  llvm::cl::cat(gRootclingOptions));
-static llvm::cl::opt<bool>
-gOptMultiDict("multiDict",
-             llvm::cl::desc("If this library has multiple separate LinkDef files."),
-             llvm::cl::cat(gRootclingOptions));
-static llvm::cl::opt<bool>
-gOptInterpreterOnly("interpreteronly",
-                   llvm::cl::desc("Generate minimal dictionary for interactivity (without IO information)."),
-                   llvm::cl::cat(gRootclingOptions));
-static llvm::cl::opt<bool>
-gOptSplit("split",
-         llvm::cl::desc("Split the dictionary into two parts: one containing the IO (ClassDef)\
-information and another the interactivity support."),
-         llvm::cl::cat(gRootclingOptions));
-static llvm::cl::opt<bool>
-gOptNoDictSelection("noDictSelection",
-                   llvm::cl::Hidden,
-                   llvm::cl::desc("Do not run the selection rules. Useful when in -onepcm mode."),
-                   llvm::cl::cat(gRootclingOptions));
-static llvm::cl::opt<std::string>
-gOptSharedLibFileName("s",
-                     llvm::cl::desc("The path to the library of the built dictionary."),
-                     llvm::cl::cat(gRootclingOptions));
-static llvm::cl::list<std::string>
-gOptModuleDependencies("m",
-                      llvm::cl::desc("The list of dependent modules of the dictionary."),
-                      llvm::cl::cat(gRootclingOptions));
-static llvm::cl::list<std::string>
-gOptExcludePaths("excludePath", llvm::cl::ZeroOrMore,
-                llvm::cl::desc("Do not store the <path> in the dictionary."),
-                llvm::cl::cat(gRootclingOptions));
-// FIXME: This does not seem to work. We have one use of -inlineInputHeader in
-// ROOT and it does not produce the expected result.
-static llvm::cl::opt<bool>
-gOptInlineInput("inlineInputHeader",
-               llvm::cl::desc("Does not generate #include <header> but expands the header content."),
-               llvm::cl::cat(gRootclingOptions));
-// FIXME: This is totally the wrong concept. We should not expose an interface
-// to be able to tell which component is in the pch and which needs extra
-// scaffolding for interactive use. Moreover, some of the ROOT components are
-// partially in the pch and this option makes it impossible to express that.
-// We should be able to get the list of headers in the pch early and scan
-// through them.
-static llvm::cl::opt<bool>
-gOptWriteEmptyRootPCM("writeEmptyRootPCM",
-                     llvm::cl::Hidden,
-                     llvm::cl::desc("Does not include the header files as it assumes they exist in the pch."),
-                     llvm::cl::cat(gRootclingOptions));
-static llvm::cl::opt<bool>
-gOptCheckSelectionSyntax("selSyntaxOnly",
-                        llvm::cl::desc("Check the selection syntax only."),
-                        llvm::cl::cat(gRootclingOptions));
-static llvm::cl::opt<bool>
-gOptFailOnWarnings("failOnWarnings",
-                  llvm::cl::desc("Fail if there are warnings."),
-                  llvm::cl::cat(gRootclingOptions));
-static llvm::cl::opt<bool>
-gOptNoIncludePaths("noIncludePaths",
-                  llvm::cl::desc("Do not store include paths but rely on the env variable ROOT_INCLUDE_PATH."),
-                  llvm::cl::cat(gRootclingOptions));
-static llvm::cl::opt<std::string>
-gOptISysRoot("isysroot", llvm::cl::Prefix, llvm::cl::Hidden,
-            llvm::cl::desc("Specify an isysroot."),
-            llvm::cl::cat(gRootclingOptions),
-            llvm::cl::init("-"));
-static llvm::cl::list<std::string>
-gOptIncludePaths("I", llvm::cl::Prefix, llvm::cl::ZeroOrMore,
-                llvm::cl::desc("Specify an include path."),
-                llvm::cl::cat(gRootclingOptions));
-static llvm::cl::list<std::string>
-gOptPPDefines("D", llvm::cl::Prefix, llvm::cl::ZeroOrMore,
-             llvm::cl::desc("Specify defined macros."),
-             llvm::cl::cat(gRootclingOptions));
-static llvm::cl::list<std::string>
-gOptPPUndefines("U", llvm::cl::Prefix, llvm::cl::ZeroOrMore,
-             llvm::cl::desc("Specify undefined macros."),
-             llvm::cl::cat(gRootclingOptions));
-static llvm::cl::list<std::string>
-gOptWDiags("W", llvm::cl::Prefix, llvm::cl::ZeroOrMore,
-          llvm::cl::desc("Specify compiler diagnostics options."),
-          llvm::cl::cat(gRootclingOptions));
-static llvm::cl::list<std::string>
-gOptDictionaryHeaderFiles(llvm::cl::Positional, llvm::cl::OneOrMore,
-                         llvm::cl::desc("<list of dictionary header files> <LinkDef file>"),
-                         llvm::cl::cat(gRootclingOptions));
-static llvm::cl::list<std::string>
-gOptSink(llvm::cl::ZeroOrMore, llvm::cl::Sink,
-         llvm::cl::desc("Consumes all unrecognized options."),
-         llvm::cl::cat(gRootclingOptions));
-
-static llvm::cl::SubCommand
-gBareClingSubcommand("bare-cling", "Call directly cling and exit.");
-
-static llvm::cl::list<std::string>
-gOptBareClingSink(llvm::cl::OneOrMore, llvm::cl::Sink,
-                  llvm::cl::desc("Consumes options and sends them to cling."),
-                  llvm::cl::cat(gRootclingOptions), llvm::cl::sub(gBareClingSubcommand));
-
-////////////////////////////////////////////////////////////////////////////////
-
 void SetRootSys();
 
 ROOT::Internal::RootCling::TROOTSYSSetter::TROOTSYSSetter() {
@@ -2864,149 +2663,6 @@ int FinalizeStreamerInfoWriting(cling::Interpreter &interp, bool writeEmptyRootP
 
 ////////////////////////////////////////////////////////////////////////////////
 
-int GenerateFullDict(std::ostream &dictStream,
-                     cling::Interpreter &interp,
-                     RScanner &scan,
-                     const ROOT::TMetaUtils::RConstructorTypes &ctorTypes,
-                     bool isSplit,
-                     bool isGenreflex,
-                     bool writeEmptyRootPCM)
-{
-   ROOT::TMetaUtils::TNormalizedCtxt normCtxt(interp.getLookupHelper());
-
-   bool needsCollectionProxy = false;
-
-   //
-   // We will loop over all the classes several times.
-   // In order we will call
-   //
-   //     WriteClassInit (code to create the TGenericClassInfo)
-   //     check for constructor and operator input
-   //     WriteClassFunctions (declared in ClassDef)
-   //     WriteClassCode (Streamer,ShowMembers,Auxiliary functions)
-   //
-
-
-   //
-   // Loop over all classes and create Streamer() & Showmembers() methods
-   //
-
-   // SELECTION LOOP
-   for (auto const & ns : scan.fSelectedNamespaces) {
-      if (!gOptIgnoreExistingDict) {
-         WriteNamespaceInit(ns, interp, dictStream);
-      }
-      auto nsName = ns.GetNamespaceDecl()->getQualifiedNameAsString();
-      if (nsName.find("(anonymous)") == std::string::npos)
-         EmitStreamerInfo(nsName.c_str());
-   }
-
-   for (auto const & selClass : scan.fSelectedClasses) {
-      if (!selClass.GetRecordDecl()->isCompleteDefinition()) {
-         ROOT::TMetaUtils::Error(0, "A dictionary has been requested for %s but there is no declaration!\n", ROOT::TMetaUtils::GetQualifiedName(selClass).c_str());
-         continue;
-      }
-      if (selClass.RequestOnlyTClass()) {
-         // fprintf(stderr,"rootcling: Skipping class %s\n",R__GetQualifiedName(* selClass.GetRecordDecl()).c_str());
-         // For now delay those for later.
-         continue;
-      }
-
-      // Very important: here we decide if we want to attach attributes to the decl.
-
-      if (clang::CXXRecordDecl *CXXRD =
-               llvm::dyn_cast<clang::CXXRecordDecl>(const_cast<clang::RecordDecl *>(selClass.GetRecordDecl()))) {
-         AnnotateDecl(*CXXRD, scan.GetDeclsSelRulesMap() , interp, isGenreflex);
-      }
-
-      const clang::CXXRecordDecl *CRD = llvm::dyn_cast<clang::CXXRecordDecl>(selClass.GetRecordDecl());
-
-      if (CRD) {
-         ROOT::TMetaUtils::Info(0, "Generating code for class %s\n", selClass.GetNormalizedName());
-         if (TMetaUtils::IsStdClass(*CRD) && 0 != TClassEdit::STLKind(CRD->getName().str() /* unqualified name without template argument */)) {
-            // Register the collections
-            // coverity[fun_call_w_exception] - that's just fine.
-            Internal::RStl::Instance().GenerateTClassFor(selClass.GetNormalizedName(), CRD, interp, normCtxt);
-         } else {
-            if (!gOptIgnoreExistingDict) {
-               ROOT::TMetaUtils::WriteClassInit(dictStream, selClass, CRD, interp, normCtxt, ctorTypes,
-                                                needsCollectionProxy);
-            }
-            EmitStreamerInfo(selClass.GetNormalizedName());
-         }
-      }
-   }
-
-   //
-   // Write all TBuffer &operator>>(...), Class_Name(), Dictionary(), etc.
-   // first to allow template specialisation to occur before template
-   // instantiation (STK)
-   //
-   // SELECTION LOOP
-   for (auto const & selClass : scan.fSelectedClasses) {
-
-      if (!selClass.GetRecordDecl()->isCompleteDefinition() || selClass.RequestOnlyTClass()) {
-         // For now delay those for later.
-         continue;
-      }
-      const clang::CXXRecordDecl *cxxdecl = llvm::dyn_cast<clang::CXXRecordDecl>(selClass.GetRecordDecl());
-      if (cxxdecl && ROOT::TMetaUtils::ClassInfo__HasMethod(selClass, "Class_Name", interp) && !gOptIgnoreExistingDict) {
-         WriteClassFunctions(cxxdecl, dictStream, isSplit);
-      }
-   }
-
-   // LINKDEF SELECTION LOOP
-   // Loop to get the shadow class for the class marked 'RequestOnlyTClass' (but not the
-   // STL class which is done via Internal::RStl::Instance().WriteClassInit(0);
-   // and the ClassInit
-
-   for (auto const & selClass : scan.fSelectedClasses) {
-      if (!selClass.GetRecordDecl()->isCompleteDefinition() || !selClass.RequestOnlyTClass()) {
-         continue;
-      }
-
-      const clang::CXXRecordDecl *CRD = llvm::dyn_cast<clang::CXXRecordDecl>(selClass.GetRecordDecl());
-
-      if (!ROOT::TMetaUtils::IsSTLContainer(selClass)) {
-         if (!gOptIgnoreExistingDict) {
-            ROOT::TMetaUtils::WriteClassInit(dictStream, selClass, CRD, interp, normCtxt, ctorTypes,
-                                             needsCollectionProxy);
-         }
-         EmitStreamerInfo(selClass.GetNormalizedName());
-      }
-   }
-   // Loop to write all the ClassCode
-   if (!gOptIgnoreExistingDict) {
-      for (auto const &selClass : scan.fSelectedClasses) {
-          ROOT::TMetaUtils::WriteClassCode(&CallWriteStreamer,
-                                           selClass,
-                                           interp,
-                                           normCtxt,
-                                           dictStream,
-                                           ctorTypes,
-                                           isGenreflex);
-      }
-
-      // Loop on the registered collections internally
-      // coverity[fun_call_w_exception] - that's just fine.
-      ROOT::Internal::RStl::Instance().WriteClassInit(dictStream, interp, normCtxt, ctorTypes, needsCollectionProxy,
-                                                      EmitStreamerInfo);
-   }
-
-   if (!gDriverConfig->fBuildingROOTStage1) {
-      EmitTypedefs(scan.fSelectedTypedefs);
-      EmitEnums(scan.fSelectedEnums);
-      // Make up for skipping RegisterModule, now that dictionary parsing
-      // is done and these headers cannot be selected anymore.
-      int finRetCode = FinalizeStreamerInfoWriting(interp, writeEmptyRootPCM);
-      if (finRetCode != 0) return finRetCode;
-   }
-
-   return 0;
-}
-
-////////////////////////////////////////////////////////////////////////////////
-
 void CreateDictHeader(std::ostream &dictStream, const std::string &main_dictname)
 {
    dictStream  << "// Do NOT change. Changes will be lost next time file is generated\n\n"
@@ -3826,6 +3482,348 @@ public:
 
    virtual bool IncludeInDiagnosticCounts() const override { return fChild->IncludeInDiagnosticCounts(); }
 };
+
+static void MaybeSuppressWin32CrashDialogs() {
+#if defined(_WIN32) && defined(_MSC_VER)
+   // Suppress error dialogs to avoid hangs on build nodes.
+   // One can use an environment variable (Cling_GuiOnAssert) to enable
+   // the error dialogs.
+   const char *EnablePopups = getenv("Cling_GuiOnAssert");
+   if (EnablePopups == nullptr || EnablePopups[0] == '0') {
+      ::_set_error_mode(_OUT_TO_STDERR);
+      _CrtSetReportMode(_CRT_WARN, _CRTDBG_MODE_FILE | _CRTDBG_MODE_DEBUG);
+      _CrtSetReportFile(_CRT_WARN, _CRTDBG_FILE_STDERR);
+      _CrtSetReportMode(_CRT_ERROR, _CRTDBG_MODE_FILE | _CRTDBG_MODE_DEBUG);
+      _CrtSetReportFile(_CRT_ERROR, _CRTDBG_FILE_STDERR);
+      _CrtSetReportMode(_CRT_ASSERT, _CRTDBG_MODE_FILE | _CRTDBG_MODE_DEBUG);
+      _CrtSetReportFile(_CRT_ASSERT, _CRTDBG_FILE_STDERR);
+   }
+#endif
+}
+
+static llvm::cl::OptionCategory gRootclingOptions("rootcling common options");
+static llvm::cl::opt<bool> gOptForce("f", llvm::cl::desc("Overwrite <file>s."),
+                                    llvm::cl::cat(gRootclingOptions));
+static llvm::cl::opt<bool> gOptRootBuild("rootbuild", llvm::cl::desc("If we are building ROOT."),
+                                        llvm::cl::Hidden,
+                                        llvm::cl::cat(gRootclingOptions));
+enum VerboseLevel {
+   v = ROOT::TMetaUtils::kError,
+   v0 = ROOT::TMetaUtils::kFatal,
+   v1 = v,
+   v2 = ROOT::TMetaUtils::kWarning,
+   v3 = ROOT::TMetaUtils::kNote,
+   v4 = ROOT::TMetaUtils::kInfo
+};
+static llvm::cl::opt<VerboseLevel>
+gOptVerboseLevel(llvm::cl::desc("Choose verbosity level:"),
+                llvm::cl::values(clEnumVal(v, "Show errors."),
+                                 clEnumVal(v0, "Show only fatal errors."),
+                                 clEnumVal(v1, "Show errors (the same as -v)."),
+                                 clEnumVal(v2, "Show warnings (default)."),
+                                 clEnumVal(v3, "Show notes."),
+                                 clEnumVal(v4, "Show information.")),
+                llvm::cl::init(v2),
+                llvm::cl::cat(gRootclingOptions));
+
+static llvm::cl::opt<bool>
+gOptCint("cint", llvm::cl::desc("Deprecated, legacy flag which is ignored."),
+        llvm::cl::Hidden,
+        llvm::cl::cat(gRootclingOptions));
+static llvm::cl::opt<bool>
+gOptReflex("reflex", llvm::cl::desc("Deprecated, legacy flag which is ignored."),
+          llvm::cl::Hidden,
+          llvm::cl::cat(gRootclingOptions));
+static llvm::cl::opt<bool>
+gOptGccXml("gccxml", llvm::cl::desc("Deprecated, legacy flag which is ignored."),
+          llvm::cl::Hidden,
+          llvm::cl::cat(gRootclingOptions));
+static llvm::cl::opt<std::string>
+gOptLibListPrefix("lib-list-prefix",
+                 llvm::cl::desc("An ACLiC feature which exports the list of dependent libraries."),
+                 llvm::cl::Hidden,
+                 llvm::cl::cat(gRootclingOptions));
+static llvm::cl::opt<bool>
+gOptGeneratePCH("generate-pch",
+               llvm::cl::desc("Generates a pch file from a predefined set of headers. See makepch.py."),
+               llvm::cl::Hidden,
+               llvm::cl::cat(gRootclingOptions));
+ // FIXME: We should remove the IgnoreExistingDict option as it is not used.
+static llvm::cl::opt<bool>
+gOptIgnoreExistingDict("r",
+               llvm::cl::desc("Deprecated, legacy flag which is ignored."),
+               llvm::cl::Hidden,
+               llvm::cl::cat(gRootclingOptions));
+static llvm::cl::opt<std::string>
+gOptDictionaryFileName(llvm::cl::Positional, llvm::cl::Required,
+                      llvm::cl::desc("<output dictionary file>"),
+                      llvm::cl::cat(gRootclingOptions));
+static llvm::cl::opt<bool>
+gOptC("c", llvm::cl::desc("Deprecated, legacy flag which is ignored."),
+     llvm::cl::cat(gRootclingOptions));
+static llvm::cl::opt<bool>
+gOptP("p", llvm::cl::desc("Deprecated, legacy flag which is ignored."),
+     llvm::cl::cat(gRootclingOptions));
+static llvm::cl::list<std::string>
+gOptRootmapLibNames("rml", llvm::cl::ZeroOrMore,
+                   llvm::cl::desc("Generate rootmap file."),
+                   llvm::cl::cat(gRootclingOptions));
+static llvm::cl::opt<std::string>
+gOptRootMapFileName("rmf",
+                   llvm::cl::desc("Generate a rootmap file with the specified name."),
+                   llvm::cl::cat(gRootclingOptions));
+static llvm::cl::opt<bool>
+gOptCxxModule("cxxmodule",
+             llvm::cl::desc("Generate a C++ module."),
+             llvm::cl::cat(gRootclingOptions));
+static llvm::cl::list<std::string>
+gOptModuleMapFiles("moduleMapFile",
+                   llvm::cl::desc("Specify a C++ modulemap file."),
+                   llvm::cl::cat(gRootclingOptions));
+// FIXME: Figure out how to combine the code of -umbrellaHeader and inlineInputHeader
+static llvm::cl::opt<bool>
+gOptUmbrellaInput("umbrellaHeader",
+                  llvm::cl::desc("A single header including all headers instead of specifying them on the command line."),
+                  llvm::cl::cat(gRootclingOptions));
+static llvm::cl::opt<bool>
+gOptMultiDict("multiDict",
+             llvm::cl::desc("If this library has multiple separate LinkDef files."),
+             llvm::cl::cat(gRootclingOptions));
+static llvm::cl::opt<bool>
+gOptInterpreterOnly("interpreteronly",
+                   llvm::cl::desc("Generate minimal dictionary for interactivity (without IO information)."),
+                   llvm::cl::cat(gRootclingOptions));
+static llvm::cl::opt<bool>
+gOptSplit("split",
+         llvm::cl::desc("Split the dictionary into two parts: one containing the IO (ClassDef)\
+information and another the interactivity support."),
+         llvm::cl::cat(gRootclingOptions));
+static llvm::cl::opt<bool>
+gOptNoDictSelection("noDictSelection",
+                   llvm::cl::Hidden,
+                   llvm::cl::desc("Do not run the selection rules. Useful when in -onepcm mode."),
+                   llvm::cl::cat(gRootclingOptions));
+static llvm::cl::opt<std::string>
+gOptSharedLibFileName("s",
+                     llvm::cl::desc("The path to the library of the built dictionary."),
+                     llvm::cl::cat(gRootclingOptions));
+static llvm::cl::list<std::string>
+gOptModuleDependencies("m",
+                      llvm::cl::desc("The list of dependent modules of the dictionary."),
+                      llvm::cl::cat(gRootclingOptions));
+static llvm::cl::list<std::string>
+gOptExcludePaths("excludePath", llvm::cl::ZeroOrMore,
+                llvm::cl::desc("Do not store the <path> in the dictionary."),
+                llvm::cl::cat(gRootclingOptions));
+// FIXME: This does not seem to work. We have one use of -inlineInputHeader in
+// ROOT and it does not produce the expected result.
+static llvm::cl::opt<bool>
+gOptInlineInput("inlineInputHeader",
+               llvm::cl::desc("Does not generate #include <header> but expands the header content."),
+               llvm::cl::cat(gRootclingOptions));
+// FIXME: This is totally the wrong concept. We should not expose an interface
+// to be able to tell which component is in the pch and which needs extra
+// scaffolding for interactive use. Moreover, some of the ROOT components are
+// partially in the pch and this option makes it impossible to express that.
+// We should be able to get the list of headers in the pch early and scan
+// through them.
+static llvm::cl::opt<bool>
+gOptWriteEmptyRootPCM("writeEmptyRootPCM",
+                     llvm::cl::Hidden,
+                     llvm::cl::desc("Does not include the header files as it assumes they exist in the pch."),
+                     llvm::cl::cat(gRootclingOptions));
+static llvm::cl::opt<bool>
+gOptCheckSelectionSyntax("selSyntaxOnly",
+                        llvm::cl::desc("Check the selection syntax only."),
+                        llvm::cl::cat(gRootclingOptions));
+static llvm::cl::opt<bool>
+gOptFailOnWarnings("failOnWarnings",
+                  llvm::cl::desc("Fail if there are warnings."),
+                  llvm::cl::cat(gRootclingOptions));
+static llvm::cl::opt<bool>
+gOptNoIncludePaths("noIncludePaths",
+                  llvm::cl::desc("Do not store include paths but rely on the env variable ROOT_INCLUDE_PATH."),
+                  llvm::cl::cat(gRootclingOptions));
+static llvm::cl::opt<std::string>
+gOptISysRoot("isysroot", llvm::cl::Prefix, llvm::cl::Hidden,
+            llvm::cl::desc("Specify an isysroot."),
+            llvm::cl::cat(gRootclingOptions),
+            llvm::cl::init("-"));
+static llvm::cl::list<std::string>
+gOptIncludePaths("I", llvm::cl::Prefix, llvm::cl::ZeroOrMore,
+                llvm::cl::desc("Specify an include path."),
+                llvm::cl::cat(gRootclingOptions));
+static llvm::cl::list<std::string>
+gOptPPDefines("D", llvm::cl::Prefix, llvm::cl::ZeroOrMore,
+             llvm::cl::desc("Specify defined macros."),
+             llvm::cl::cat(gRootclingOptions));
+static llvm::cl::list<std::string>
+gOptPPUndefines("U", llvm::cl::Prefix, llvm::cl::ZeroOrMore,
+             llvm::cl::desc("Specify undefined macros."),
+             llvm::cl::cat(gRootclingOptions));
+static llvm::cl::list<std::string>
+gOptWDiags("W", llvm::cl::Prefix, llvm::cl::ZeroOrMore,
+          llvm::cl::desc("Specify compiler diagnostics options."),
+          llvm::cl::cat(gRootclingOptions));
+static llvm::cl::list<std::string>
+gOptDictionaryHeaderFiles(llvm::cl::Positional, llvm::cl::OneOrMore,
+                         llvm::cl::desc("<list of dictionary header files> <LinkDef file>"),
+                         llvm::cl::cat(gRootclingOptions));
+static llvm::cl::list<std::string>
+gOptSink(llvm::cl::ZeroOrMore, llvm::cl::Sink,
+         llvm::cl::desc("Consumes all unrecognized options."),
+         llvm::cl::cat(gRootclingOptions));
+
+static llvm::cl::SubCommand
+gBareClingSubcommand("bare-cling", "Call directly cling and exit.");
+
+static llvm::cl::list<std::string>
+gOptBareClingSink(llvm::cl::OneOrMore, llvm::cl::Sink,
+                  llvm::cl::desc("Consumes options and sends them to cling."),
+                  llvm::cl::cat(gRootclingOptions), llvm::cl::sub(gBareClingSubcommand));
+
+////////////////////////////////////////////////////////////////////////////////
+
+int GenerateFullDict(std::ostream &dictStream,
+                     cling::Interpreter &interp,
+                     RScanner &scan,
+                     const ROOT::TMetaUtils::RConstructorTypes &ctorTypes,
+                     bool isSplit,
+                     bool isGenreflex,
+                     bool writeEmptyRootPCM)
+{
+   ROOT::TMetaUtils::TNormalizedCtxt normCtxt(interp.getLookupHelper());
+
+   bool needsCollectionProxy = false;
+
+   //
+   // We will loop over all the classes several times.
+   // In order we will call
+   //
+   //     WriteClassInit (code to create the TGenericClassInfo)
+   //     check for constructor and operator input
+   //     WriteClassFunctions (declared in ClassDef)
+   //     WriteClassCode (Streamer,ShowMembers,Auxiliary functions)
+   //
+
+
+   //
+   // Loop over all classes and create Streamer() & Showmembers() methods
+   //
+
+   // SELECTION LOOP
+   for (auto const & ns : scan.fSelectedNamespaces) {
+      if (!gOptIgnoreExistingDict) {
+         WriteNamespaceInit(ns, interp, dictStream);
+      }
+      auto nsName = ns.GetNamespaceDecl()->getQualifiedNameAsString();
+      if (nsName.find("(anonymous)") == std::string::npos)
+         EmitStreamerInfo(nsName.c_str());
+   }
+
+   for (auto const & selClass : scan.fSelectedClasses) {
+      if (!selClass.GetRecordDecl()->isCompleteDefinition()) {
+         ROOT::TMetaUtils::Error(0, "A dictionary has been requested for %s but there is no declaration!\n", ROOT::TMetaUtils::GetQualifiedName(selClass).c_str());
+         continue;
+      }
+      if (selClass.RequestOnlyTClass()) {
+         // fprintf(stderr,"rootcling: Skipping class %s\n",R__GetQualifiedName(* selClass.GetRecordDecl()).c_str());
+         // For now delay those for later.
+         continue;
+      }
+
+      // Very important: here we decide if we want to attach attributes to the decl.
+
+      if (clang::CXXRecordDecl *CXXRD =
+               llvm::dyn_cast<clang::CXXRecordDecl>(const_cast<clang::RecordDecl *>(selClass.GetRecordDecl()))) {
+         AnnotateDecl(*CXXRD, scan.GetDeclsSelRulesMap() , interp, isGenreflex);
+      }
+
+      const clang::CXXRecordDecl *CRD = llvm::dyn_cast<clang::CXXRecordDecl>(selClass.GetRecordDecl());
+
+      if (CRD) {
+         ROOT::TMetaUtils::Info(0, "Generating code for class %s\n", selClass.GetNormalizedName());
+         if (TMetaUtils::IsStdClass(*CRD) && 0 != TClassEdit::STLKind(CRD->getName().str() /* unqualified name without template argument */)) {
+            // Register the collections
+            // coverity[fun_call_w_exception] - that's just fine.
+            Internal::RStl::Instance().GenerateTClassFor(selClass.GetNormalizedName(), CRD, interp, normCtxt);
+         } else {
+            if (!gOptIgnoreExistingDict) {
+               ROOT::TMetaUtils::WriteClassInit(dictStream, selClass, CRD, interp, normCtxt, ctorTypes,
+                                                needsCollectionProxy);
+            }
+            EmitStreamerInfo(selClass.GetNormalizedName());
+         }
+      }
+   }
+
+   //
+   // Write all TBuffer &operator>>(...), Class_Name(), Dictionary(), etc.
+   // first to allow template specialisation to occur before template
+   // instantiation (STK)
+   //
+   // SELECTION LOOP
+   for (auto const & selClass : scan.fSelectedClasses) {
+
+      if (!selClass.GetRecordDecl()->isCompleteDefinition() || selClass.RequestOnlyTClass()) {
+         // For now delay those for later.
+         continue;
+      }
+      const clang::CXXRecordDecl *cxxdecl = llvm::dyn_cast<clang::CXXRecordDecl>(selClass.GetRecordDecl());
+      if (cxxdecl && ROOT::TMetaUtils::ClassInfo__HasMethod(selClass, "Class_Name", interp) && !gOptIgnoreExistingDict) {
+         WriteClassFunctions(cxxdecl, dictStream, isSplit);
+      }
+   }
+
+   // LINKDEF SELECTION LOOP
+   // Loop to get the shadow class for the class marked 'RequestOnlyTClass' (but not the
+   // STL class which is done via Internal::RStl::Instance().WriteClassInit(0);
+   // and the ClassInit
+
+   for (auto const & selClass : scan.fSelectedClasses) {
+      if (!selClass.GetRecordDecl()->isCompleteDefinition() || !selClass.RequestOnlyTClass()) {
+         continue;
+      }
+
+      const clang::CXXRecordDecl *CRD = llvm::dyn_cast<clang::CXXRecordDecl>(selClass.GetRecordDecl());
+
+      if (!ROOT::TMetaUtils::IsSTLContainer(selClass)) {
+         if (!gOptIgnoreExistingDict) {
+            ROOT::TMetaUtils::WriteClassInit(dictStream, selClass, CRD, interp, normCtxt, ctorTypes,
+                                             needsCollectionProxy);
+         }
+         EmitStreamerInfo(selClass.GetNormalizedName());
+      }
+   }
+   // Loop to write all the ClassCode
+   if (!gOptIgnoreExistingDict) {
+      for (auto const &selClass : scan.fSelectedClasses) {
+          ROOT::TMetaUtils::WriteClassCode(&CallWriteStreamer,
+                                           selClass,
+                                           interp,
+                                           normCtxt,
+                                           dictStream,
+                                           ctorTypes,
+                                           isGenreflex);
+      }
+
+      // Loop on the registered collections internally
+      // coverity[fun_call_w_exception] - that's just fine.
+      ROOT::Internal::RStl::Instance().WriteClassInit(dictStream, interp, normCtxt, ctorTypes, needsCollectionProxy,
+                                                      EmitStreamerInfo);
+   }
+
+   if (!gDriverConfig->fBuildingROOTStage1) {
+      EmitTypedefs(scan.fSelectedTypedefs);
+      EmitEnums(scan.fSelectedEnums);
+      // Make up for skipping RegisterModule, now that dictionary parsing
+      // is done and these headers cannot be selected anymore.
+      int finRetCode = FinalizeStreamerInfoWriting(interp, writeEmptyRootPCM);
+      if (finRetCode != 0) return finRetCode;
+   }
+
+   return 0;
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 /// Returns true iff a given module (and its submodules) contains all headers
