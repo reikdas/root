@@ -4523,7 +4523,8 @@ int RootClingMain(int argc,
    // Check if code goes to stdout or rootcling file
    std::ofstream fileout;
    string main_dictname(gOptDictionaryFileName.getValue());
-   std::ostream *dictStreamPtr = NULL;
+   std::ostringstream test;
+   std::ostream *dictStreamPtr = &test;
    std::ostream *dictStream = nullptr;
    std::ostream *splitDictStream = nullptr;
    std::ostream *splitDictStreamPtr = nullptr;
@@ -4566,6 +4567,7 @@ int RootClingMain(int argc,
       CreateDictHeader(*dictStream, main_dictname);
       if (gOptSplit)
          CreateDictHeader(*splitDictStream, main_dictname);
+      assert(test.str().empty());
    }
 
    //---------------------------------------------------------------------------
@@ -4711,6 +4713,7 @@ int RootClingMain(int argc,
          *dictStream << "#include <" << incFile << ">" << std::endl;
       }
       *dictStream << std::endl;
+      assert(test.str().empty());
    }
 
    selectionRules.SearchNames(interp);
@@ -4799,6 +4802,7 @@ int RootClingMain(int argc,
          if (gOptSplit) {
             GenerateNecessaryIncludes(*splitDictStream, includeForSource, extraIncludes);
          }
+         assert(test.str().empty());
       }
       if (gDriverConfig->fInitializeStreamerInfoROOTFile) {
          gDriverConfig->fInitializeStreamerInfoROOTFile(modGen.GetModuleFileName().c_str());
@@ -4831,6 +4835,7 @@ int RootClingMain(int argc,
                                  gOptSplit,
                                  isGenreflex,
                                  gOptWriteEmptyRootPCM);
+      if (!gOptIgnoreExistingDict) assert(test.str().empty());
    }
 
    if (rootclingRetCode != 0) {
@@ -4890,6 +4895,7 @@ int RootClingMain(int argc,
                return 1;
          }
       }
+      assert(test.str().empty());
    }
 
 
