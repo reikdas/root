@@ -17,6 +17,7 @@ include_directories(
   ../../clingutils/res
   ../../foundation/res
   ${CLING_INCLUDE_DIRS}
+  ../../../test/ROOTTestingSupport
   )
 
 set(LLVM_DEPS LLVMSupport)
@@ -30,5 +31,5 @@ if(NOT builtin_clang)
   link_directories("${LLVM_LIBRARY_DIR}")
 endif()
 
-ROOT_ADD_UNITTEST_DIR(Core RIO ${LLVM_DEPS})
+ROOT_ADD_UNITTEST_DIR(Core RIO ${LLVM_DEPS} ROOTTestingSupport)
 

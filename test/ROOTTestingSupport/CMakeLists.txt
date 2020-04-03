@@ -1,0 +1,1 @@
+add_library(ROOTTestingSupport STATIC ROOTTestingSupport.cxx ROOTTestingSupport.h)

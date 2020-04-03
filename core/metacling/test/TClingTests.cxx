@@ -5,39 +5,7 @@
 #include "llvm/ADT/StringRef.h"
 #include "llvm/Support/Path.h"
 
-#include "gtest/gtest.h"
-#include "gmock/gmock.h"
-
-// Copied from TFileMergerTests.cxx.
-// FIXME: Factor out in a new testing library in ROOT.
-namespace {
-using testing::internal::GetCapturedStderr;
-using testing::internal::CaptureStderr;
-using testing::internal::RE;
-class ExpectedErrorRAII {
-   std::string ExpectedRegex;
-   void pop()
-   {
-      std::string Seen = GetCapturedStderr();
-      bool match = RE::FullMatch(Seen, RE(ExpectedRegex));
-      EXPECT_TRUE(match);
-      if (!match) {
-         std::string msg = "Match failed!\nSeen: '" + Seen + "'\nRegex: '" + ExpectedRegex + "'\n";
-         GTEST_NONFATAL_FAILURE_(msg.c_str());
-      }
-   }
-
-public:
-   ExpectedErrorRAII(std::string E) : ExpectedRegex(E) { CaptureStderr(); }
-   ~ExpectedErrorRAII() { pop(); }
-};
-}
-
-#define EXPECT_ROOT_ERROR(expression, expected_error) \
-   {                                                  \
-      ExpectedErrorRAII EE(expected_error);           \
-      expression;                                     \
-   }
+#include "ROOTTestingSupport.h"
 
 // FIXME: We should probably have such a facility in TCling.
 static void cleanup()

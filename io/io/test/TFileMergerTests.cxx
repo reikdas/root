@@ -3,36 +3,7 @@
 #include "TMemFile.h"
 #include "TTree.h"
 
-#include "gtest/gtest.h"
-
-namespace {
-using testing::internal::GetCapturedStderr;
-using testing::internal::CaptureStderr;
-using testing::internal::RE;
-class ExpectedErrorRAII {
-   std::string ExpectedRegex;
-   void pop()
-   {
-      std::string Seen = GetCapturedStderr();
-      bool match = RE::FullMatch(Seen, RE(ExpectedRegex));
-      EXPECT_TRUE(match);
-      if (!match) {
-         std::string msg = "Match failed!\nSeen: '" + Seen + "'\nRegex: '" + ExpectedRegex + "'\n";
-         GTEST_NONFATAL_FAILURE_(msg.c_str());
-      }
-   }
-
-public:
-   ExpectedErrorRAII(std::string E) : ExpectedRegex(E) { CaptureStderr(); }
-   ~ExpectedErrorRAII() { pop(); }
-};
-}
-
-#define EXPECT_ROOT_ERROR(expression, expected_error) \
-   {                                                  \
-      ExpectedErrorRAII EE(expected_error);           \
-      expression;                                     \
-   }
+#include "ROOTTestingSupport.h"
 
 static void CreateATuple(TMemFile &file, const char *name, double value)
 {
