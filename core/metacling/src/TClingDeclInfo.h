@@ -39,7 +39,7 @@ public:
       return const_cast<clang::Decl*>(const_cast<const TClingDeclInfo*>(this)->GetDecl());
    }
    virtual bool IsValid() const { return GetDecl(); }
-   virtual const char* Name();
+   virtual const char* Name() const;
 };
 
 #endif // ROOT_TClingDeclInfo
