@@ -2862,10 +2862,8 @@ void CreateDictHeader(std::ostream &dictStream, const std::string &main_dictname
 
 void AddNamespaceSTDdeclaration(std::ostream &dictStream)
 {
-#ifndef R__SOLARIS
    dictStream  << "// The generated code does not explicitly qualifies STL entities\n"
                << "namespace std {} using namespace std;\n\n";
-#endif
 }
 
 ////////////////////////////////////////////////////////////////////////////////
