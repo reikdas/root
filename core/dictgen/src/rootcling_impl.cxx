@@ -4819,9 +4819,8 @@ int RootClingMain(int argc,
       }
    }
    if (!gOptIgnoreExistingDict) {
-     if (dictStream)
-       AddNamespaceSTDdeclaration(*dictStream);
-     if (gOptSplit && splitDictStream)
+     AddNamespaceSTDdeclaration(*dictStream);
+     if (gOptSplit)
        AddNamespaceSTDdeclaration(*splitDictStream);
    }
 
