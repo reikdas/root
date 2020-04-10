@@ -4519,10 +4519,8 @@ int RootClingMain(int argc,
    // Check if code goes to stdout or rootcling file
    std::ofstream fileout;
    string main_dictname(gOptDictionaryFileName.getValue());
-   std::ostream *dictStreamPtr = NULL;
-   std::ostream *dictStream = nullptr;
+   std::ostream *dictStream = &std::cout;
    std::ostream *splitDictStream = nullptr;
-   std::ostream *splitDictStreamPtr = nullptr;
    std::unique_ptr<std::ostream> splitDeleter(nullptr);
    // Store the temp files
    tempFileNamesCatalog tmpCatalog;
@@ -4530,26 +4528,21 @@ int RootClingMain(int argc,
       if (!gOptDictionaryFileName.empty()) {
          tmpCatalog.addFileName(gOptDictionaryFileName.getValue());
          fileout.open(gOptDictionaryFileName.c_str());
-         dictStreamPtr = &fileout;
-         if (!(*dictStreamPtr)) {
+         dictStream = &fileout;
+         if (!(*dictStream)) {
             ROOT::TMetaUtils::Error(0, "rootcling: failed to open %s in main\n",
                                     gOptDictionaryFileName.c_str());
             return 1;
          }
-      } else {
-         dictStreamPtr = &std::cout;
       }
 
       // Now generate a second stream for the split dictionary if it is necessary
       if (gOptSplit) {
-         splitDictStreamPtr = CreateStreamPtrForSplitDict(gOptDictionaryFileName.getValue(), tmpCatalog);
-         splitDeleter.reset(splitDictStreamPtr);
+         splitDictStream = CreateStreamPtrForSplitDict(gOptDictionaryFileName.getValue(), tmpCatalog);
+         splitDeleter.reset(splitDictStream);
       } else {
-         splitDictStreamPtr = dictStreamPtr;
+         splitDictStream = dictStream;
       }
-
-      dictStream = dictStreamPtr;
-      splitDictStream = splitDictStreamPtr;
 
       size_t dh = main_dictname.rfind('.');
       if (dh != std::string::npos) {
