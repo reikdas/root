@@ -3011,14 +3011,13 @@ private:
 ////////////////////////////////////////////////////////////////////////////////
 /// Transform name of dictionary
 
-std::ostream *CreateStreamPtrForSplitDict(const std::string &dictpathname,
-      tempFileNamesCatalog &tmpCatalog)
+std::ostream &CreateStreamPtrForSplitDict(const std::string &dictpathname, tempFileNamesCatalog &tmpCatalog)
 {
    std::string splitDictName(tmpCatalog.getFileName(dictpathname));
    const size_t dotPos = splitDictName.find_last_of(".");
    splitDictName.insert(dotPos, "_classdef");
    tmpCatalog.addFileName(splitDictName);
-   return new std::ofstream(splitDictName.c_str());
+   return *(new std::ofstream(splitDictName.c_str()));
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -4519,29 +4518,17 @@ int RootClingMain(int argc,
    // Check if code goes to stdout or rootcling file
    std::ofstream fileout;
    string main_dictname(gOptDictionaryFileName.getValue());
-   std::ostream *dictStream = &std::cout;
-   std::ostream *splitDictStream = nullptr;
-   std::unique_ptr<std::ostream> splitDeleter(nullptr);
    // Store the temp files
    tempFileNamesCatalog tmpCatalog;
    if (!gOptIgnoreExistingDict) {
       if (!gOptDictionaryFileName.empty()) {
          tmpCatalog.addFileName(gOptDictionaryFileName.getValue());
          fileout.open(gOptDictionaryFileName.c_str());
-         dictStream = &fileout;
-         if (!(*dictStream)) {
+         if (!fileout) {
             ROOT::TMetaUtils::Error(0, "rootcling: failed to open %s in main\n",
                                     gOptDictionaryFileName.c_str());
             return 1;
          }
-      }
-
-      // Now generate a second stream for the split dictionary if it is necessary
-      if (gOptSplit) {
-         splitDictStream = CreateStreamPtrForSplitDict(gOptDictionaryFileName.getValue(), tmpCatalog);
-         splitDeleter.reset(splitDictStream);
-      } else {
-         splitDictStream = dictStream;
       }
 
       size_t dh = main_dictname.rfind('.');
@@ -4551,10 +4538,22 @@ int RootClingMain(int argc,
       // Need to replace all the characters not allowed in a symbol ...
       std::string main_dictname_copy(main_dictname);
       TMetaUtils::GetCppName(main_dictname, main_dictname_copy.c_str());
+   }
 
-      CreateDictHeader(*dictStream, main_dictname);
+   std::ostream &dictStream = (!gOptIgnoreExistingDict && !gOptDictionaryFileName.empty()) ? fileout : std::cout;
+   // Now generate a second stream for the split dictionary if it is necessary
+   std::ostream &splitDictStream = (!gOptIgnoreExistingDict && gOptSplit)
+                                      ? CreateStreamPtrForSplitDict(gOptDictionaryFileName.getValue(), tmpCatalog)
+                                      : dictStream;
+
+   std::unique_ptr<std::ostream> splitDeleter(nullptr);
+   if (gOptSplit)
+      splitDeleter.reset(&splitDictStream);
+
+   if (!gOptIgnoreExistingDict) {
+      CreateDictHeader(dictStream, main_dictname);
       if (gOptSplit)
-         CreateDictHeader(*splitDictStream, main_dictname);
+         CreateDictHeader(splitDictStream, main_dictname);
    }
 
    //---------------------------------------------------------------------------
@@ -4689,17 +4688,17 @@ int RootClingMain(int argc,
    /////////////////////////////////////////////////////////////////////////////
 
    if ((!ROOT::gReadRules.empty() || !ROOT::gReadRawRules.empty()) && !gOptIgnoreExistingDict) {
-      *dictStream << "#include \"TBuffer.h\"\n"
-                  << "#include \"TVirtualObject.h\"\n"
-                  << "#include <vector>\n"
-                  << "#include \"TSchemaHelper.h\"\n\n";
+      dictStream << "#include \"TBuffer.h\"\n"
+                 << "#include \"TVirtualObject.h\"\n"
+                 << "#include <vector>\n"
+                 << "#include \"TSchemaHelper.h\"\n\n";
 
       std::list<std::string> includes;
       GetRuleIncludes(includes);
       for (auto & incFile : includes) {
-         *dictStream << "#include <" << incFile << ">" << std::endl;
+         dictStream << "#include <" << incFile << ">" << std::endl;
       }
-      *dictStream << std::endl;
+      dictStream << std::endl;
    }
 
    selectionRules.SearchNames(interp);
@@ -4784,9 +4783,9 @@ int RootClingMain(int argc,
 
    if (!gOptGeneratePCH) {
       if (!gOptIgnoreExistingDict) {
-         GenerateNecessaryIncludes(*dictStream, includeForSource, extraIncludes);
+         GenerateNecessaryIncludes(dictStream, includeForSource, extraIncludes);
          if (gOptSplit) {
-            GenerateNecessaryIncludes(*splitDictStream, includeForSource, extraIncludes);
+            GenerateNecessaryIncludes(splitDictStream, includeForSource, extraIncludes);
          }
       }
       if (gDriverConfig->fInitializeStreamerInfoROOTFile) {
@@ -4813,7 +4812,7 @@ int RootClingMain(int argc,
          rootclingRetCode +=  FinalizeStreamerInfoWriting(interp);
       }
    } else {
-      rootclingRetCode += GenerateFullDict(*splitDictStream,
+      rootclingRetCode += GenerateFullDict(splitDictStream,
                                  interp,
                                  scan,
                                  constructorTypes,
@@ -4866,7 +4865,7 @@ int RootClingMain(int argc,
                fwdDeclsString = GenerateFwdDeclString(scan, interp);
          }
       }
-      modGen.WriteRegistrationSource(*dictStream, fwdDeclnArgsToKeepString, headersClassesMapString, fwdDeclsString,
+      modGen.WriteRegistrationSource(dictStream, fwdDeclnArgsToKeepString, headersClassesMapString, fwdDeclsString,
                                      extraIncludes, gOptCxxModule);
       // If we just want to inline the input header, we don't need
       // to generate any files.
